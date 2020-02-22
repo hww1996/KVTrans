@@ -35,7 +35,8 @@ namespace KVTrans {
         static int get(TransDB *db, uint64_t version, const std::string &key, MVCCInfo &mvccInfo);  // 有可能需要排他锁
         static int apppendVersion(int transid, const std::string &key, MVCCInfo &mvccInfo);
 
-        static int releaseLock(int transId, const std::unordered_set<std::string> &keys);
+        static int getRowLock(int transId, const std::string &key);
+        static int releaseRowLocks(int transId, const std::unordered_set<std::string> &keys);
     private:
 
         class RowInfo {

@@ -123,22 +123,8 @@ namespace KVTrans {
 
     int MVCC::getForUpdate(TransDB *db, int transid, const std::string &key, MVCCInfo &mvccInfo) {
         int ret = 0;
-
-        //先加上行锁
-        while (true) {
-            mvccInfoLock.lock();
-            if (mvccMap.find(key) == mvccMap.end()) {
-                mvccMap.insert(std::pair<std::string, RowInfo>(key, RowInfo(key, transid)));
-            } else {
-                ret = mvccMap[key].setLock(transid);
-            }
-            mvccInfoLock.unlock();
-            if (0 == ret) {
-                break;
-            }
-            std::this_thread::sleep_for(std::chrono::milliseconds(100)); //阻塞
-        }
-
+        // 先上行锁
+        ret = getRowLock(transid, key);
         mvccInfoLock.lock_shared();
         mvccMap[key].getForUpdate(db, transid, mvccInfo); // 从version中直接获取
         mvccInfoLock.unlock_shared();
@@ -193,7 +179,25 @@ namespace KVTrans {
         return ret;
     }
 
-    int MVCC::releaseLock(int transId, const std::unordered_set<std::string> &keys) {
+    int MVCC::getRowLock(int transId, const std::string &key) {
+        int ret = 0;
+        while (true) {
+            mvccInfoLock.lock();
+            if (mvccMap.find(key) == mvccMap.end()) {
+                mvccMap.insert(std::pair<std::string, RowInfo>(key, RowInfo(key, transId)));
+            } else {
+                ret = mvccMap[key].setLock(transId);
+            }
+            mvccInfoLock.unlock();
+            if (0 == ret) {
+                break;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(100)); //阻塞
+        }
+        return ret;
+    }
+
+    int MVCC::releaseRowLocks(int transId, const std::unordered_set<std::string> &keys) {
         int count = 0;
         mvccInfoLock.lock_shared();
         for (auto it = keys.begin(); it != keys.end(); ++it) {

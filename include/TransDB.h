@@ -7,12 +7,21 @@
 #include "MVCC.h"
 
 namespace KVTrans {
+    enum DBStatus {
+        OK,
+        NOTFOUND,
+        INERTERNERROR
+    };
     class MVCCInfo;
     class TransDB {
     public:
-        virtual int get(const std::string &key, MVCCInfo &mvccInfo) = 0;
+        virtual DBStatus get(const std::string &key, MVCCInfo &mvccInfo) = 0;
 
-        virtual int writeBatch(const std::deque<MVCCInfo> &q) = 0;
+        virtual DBStatus writeBatch(const std::unordered_map<std::string, std::string> &writeKV, int version) = 0;
+
+        virtual int getVersion() = 0;
+
+        virtual void release() = 0;
     };
 } // namespace KVTrans
 

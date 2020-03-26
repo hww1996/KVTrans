@@ -8,6 +8,7 @@
 #include <unordered_set>
 #include <vector>
 #include <list>
+#include <atomic>
 
 #ifndef KVTRANS_MVCC_H
 #define KVTRANS_MVCC_H
@@ -21,15 +22,15 @@ namespace KVTrans {
         std::string key_;
         std::string value_;
         MVCCInfo(uint64_t version, bool isDel, const std::string &key, const std::string &value);
-        int encode(MVCCInfo &mvccInfo, std::string &ans);
-        int decode(const std::string &key, const std::string &val, MVCCInfo &mvccInfo);
+        int encode(std::string &ans);
+        int decode(const std::string &key, const std::string &val);
         void clone(MVCCInfo &mvccInfo);
     };
 
     class MVCC {
+    public:
         static int getVersion();
-        static int prepareVersion();
-        static int commitVersion(int addVersion);
+        static int commitVersion(int newVersion);
 
         static int getForUpdate(TransDB *db, int transid, const std::string &key, MVCCInfo &mvccInfo);
         static int get(TransDB *db, uint64_t version, const std::string &key, MVCCInfo &mvccInfo);  // 有可能需要排他锁
@@ -61,8 +62,7 @@ namespace KVTrans {
 
         static std::shared_mutex mvccInfoLock;
         static std::unordered_map<std::string, RowInfo> mvccMap;  // 假如key，那么这个RowInfo的history_不为空。
-        static std::shared_mutex mvccVersionLock;
-        static uint64_t version_;
+        static std::atomic<uint64_t> version_;
     };
 } // namespace KVTrans
 

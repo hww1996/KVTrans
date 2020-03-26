@@ -4,15 +4,21 @@
 #include <string>
 #include <deque>
 
-#include "MVCC.h"
-
 namespace KVTrans {
-    class MVCCInfo;
+    enum DBStatus {
+        OK,
+        NOTFOUND,
+        INERTERNERROR
+    };
     class TransDB {
     public:
-        virtual int get(const std::string &key, MVCCInfo &mvccInfo) = 0;
+        virtual DBStatus get(const std::string &key, std::string &value) = 0;
 
-        virtual int writeBatch(const std::deque<MVCCInfo> &q) = 0;
+        virtual DBStatus writeBatch(const std::unordered_map<std::string, std::string> &writeKV, int version) = 0;
+
+        virtual int getVersion() = 0;
+
+        virtual void release() = 0;
     };
 } // namespace KVTrans
 

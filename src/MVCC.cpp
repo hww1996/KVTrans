@@ -12,11 +12,11 @@ namespace KVTrans {
                        const std::string &key,
                        const std::string &value) : version_(version), isDel_(isDel), key_(key), value_(value) {}
 
-    int MVCCInfo::encode(MVCCInfo &mvccInfo, std::string &ans) {
+    int MVCCInfo::encode(std::string &ans) {
         return 0;
     }
 
-    int MVCCInfo::decode(const std::string &key, const std::string &val, MVCCInfo &mvccInfo) {
+    int MVCCInfo::decode(const std::string &key, const std::string &val) {
         return 0;
     }
 
@@ -59,7 +59,9 @@ namespace KVTrans {
             return -1;
         }
         if (history_.empty()) {
-            db->get(key_, mvccInfo);
+            std::string strMvccInfo;
+            DBStatus s = db->get(key_, strMvccInfo);
+            mvccInfo.decode(key_, strMvccInfo);
             history_.push_back(mvccInfo);
             return 0;
         }
@@ -99,25 +101,16 @@ namespace KVTrans {
 
     std::shared_mutex MVCC::mvccInfoLock;
     std::unordered_map<std::string, MVCC::RowInfo> MVCC::mvccMap;
-    std::shared_mutex MVCC::mvccVersionLock;
-    uint64_t MVCC::version_ = 1;
+    std::atomic<uint64_t> MVCC::version_(1);
 
     int MVCC::getVersion() {
-        mvccVersionLock.unlock_shared();
-        int nowVersion = version_;
-        mvccVersionLock.unlock_shared();
+        int nowVersion = version_.load();
         return nowVersion;
     }
 
-    int MVCC::prepareVersion() {
-        mvccVersionLock.lock();
-        return version_;
-    }
-
-    int MVCC::commitVersion(int addVersion) {
-        version_ += addVersion;
-        int nowVersion = version_;
-        mvccVersionLock.unlock();
+    int MVCC::commitVersion(int newVersion) {
+        int nowVersion = version_.load();
+        version_ = newVersion;
         return nowVersion;
     }
 
@@ -145,19 +138,24 @@ namespace KVTrans {
         if (0 == ret) {
             return ret;
         }
-        db->get(key, mvccInfo);
+        MVCCInfo temp(0, true, key, "");
+        std::string strMVCCInfo;
+        DBStatus s = db->get(key, strMVCCInfo);
+        temp.decode(key, strMVCCInfo);
+        mvccInfo.key_ = key;
+        mvccInfo.isDel_ = true;
+        mvccInfo.version_ = 0;
         mvccInfoLock.lock();
         if (mvccMap.find(key) == mvccMap.end()) { // 读取并放入key中
             mvccMap.insert(std::pair<std::string, RowInfo>(key, RowInfo(key, 0)));
             mvccMap[key].apppendVersion(0, mvccInfo);
+            if (NOTFOUND != s) {
+                mvccMap[key].apppendVersion(0, temp);
+            }
             mvccMap[key].releaseLock(0);
             ret = 0;
         }
         mvccInfoLock.unlock();
-
-        if (0 == ret) {
-            return ret;
-        }
 
         mvccInfoLock.lock_shared();
         while (mvccMap[key].get(db, version, mvccInfo) == -1) { // 假如有行锁就阻塞

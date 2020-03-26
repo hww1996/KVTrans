@@ -23,7 +23,7 @@ namespace KVTrans {
         std::string value_;
         MVCCInfo(uint64_t version, bool isDel, const std::string &key, const std::string &value);
         int encode(std::string &ans);
-        int decode(const std::string &key, const std::string &val, MVCCInfo &mvccInfo);
+        int decode(const std::string &key, const std::string &val);
         void clone(MVCCInfo &mvccInfo);
     };
 

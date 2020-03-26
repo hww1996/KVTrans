@@ -16,7 +16,7 @@ namespace KVTrans {
         return 0;
     }
 
-    int MVCCInfo::decode(const std::string &key, const std::string &val, MVCCInfo &mvccInfo) {
+    int MVCCInfo::decode(const std::string &key, const std::string &val) {
         return 0;
     }
 
@@ -59,12 +59,9 @@ namespace KVTrans {
             return -1;
         }
         if (history_.empty()) {
-            DBStatus s = db->get(key_, mvccInfo);
-            if (NOTFOUND == s) {
-                mvccInfo.key_ = key_;
-                mvccInfo.isDel_ = true;
-                mvccInfo.version_ = 0;
-            }
+            std::string strMvccInfo;
+            DBStatus s = db->get(key_, strMvccInfo);
+            mvccInfo.decode(key_, strMvccInfo);
             history_.push_back(mvccInfo);
             return 0;
         }
@@ -142,7 +139,9 @@ namespace KVTrans {
             return ret;
         }
         MVCCInfo temp(0, true, key, "");
-        DBStatus s = db->get(key, temp);
+        std::string strMVCCInfo;
+        DBStatus s = db->get(key, strMVCCInfo);
+        temp.decode(key, strMVCCInfo);
         mvccInfo.key_ = key;
         mvccInfo.isDel_ = true;
         mvccInfo.version_ = 0;
